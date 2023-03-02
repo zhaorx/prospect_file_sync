@@ -20,7 +20,7 @@ var regionPrefix = "cnpc_"
 func SyncFiles(rc config.RegionConfig) {
 	logger.Printf("%s start sync files...\n", rc.Name)
 
-	// 1. init origin originDB
+	// 1. init origin db connection
 	originDB, err := database.ConnectDB(rc.DB)
 	if err != nil {
 		logger.Printf("%s originDB init error: %s\n", rc.Name, err.Error())

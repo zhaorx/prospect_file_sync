@@ -35,16 +35,18 @@ func main() {
 	// 3. InitTargetDB
 	InitTargetDB(cfg)
 
-	for _, rc := range cfg.Regions {
-		go SyncFiles(rc)
-	}
+	runJob()
 	// 4. 周期性执行每个油田的SyncFiles
 	ticker := time.Tick(time.Duration(cfg.Beat) * time.Hour)
 	for _ = range ticker {
-		for _, rc := range cfg.Regions {
-			go SyncFiles(rc)
-		}
+		runJob()
 	}
 
 	wg.Wait()
+}
+
+func runJob() {
+	for _, rc := range cfg.Regions {
+		go SyncFiles(rc)
+	}
 }
