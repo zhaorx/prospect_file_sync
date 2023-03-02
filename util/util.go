@@ -1,56 +1,58 @@
 package util
 
 import (
+	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
-	"time"
-
-	"prospect_file_sync/config"
+	"os"
+	"path"
 )
 
-var cfg = config.Cfg
-
-// FetchDataByDate 获取某天的数据
-func FetchDataByDate(date string, dataurl string) (data []byte, err error) {
-	client := &http.Client{
-		Timeout: time.Duration(10) * time.Second,
-	}
-
-	dataurl += date
-	method := "GET"
-	req, err := http.NewRequest(method, dataurl, nil)
+// DownloadFile 下载文件落盘
+func DownloadFile(filepath string, url string) error {
+	// Create the file
+	EnsureBaseDir(filepath)
+	out, err := os.Create(filepath)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
+	defer out.Close()
 
-	// set header
-	req.Header.Add("host", "agsi.gie.eu")
-	req.Header.Add("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
-	req.Header.Add("sec-ch-ua", "\".Not/A)Brand\";v=\"99\", \"Google Chrome\";v=\"103\", \"Chromium\";v=\"103\"")
-	req.Header.Add("sec-ch-ua-mobile", "?0")
-	req.Header.Add("sec-ch-ua-platform", "\"Windows\"")
-	req.Header.Add("sec-fetch-dest", "document")
-	req.Header.Add("sec-fetch-mode", "navigate")
-	req.Header.Add("sec-fetch-site", "none")
-	req.Header.Add("sec-fetch-user", "?1")
-	req.Header.Add("upgrade-insecure-requests", "1")
-	req.Header.Add("user-agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/103.0.5060.66 Safari/537.36")
-
-	res, err := client.Do(req)
+	// Get the data
+	resp, err := http.Get(url)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
-	defer res.Body.Close()
+	if resp.StatusCode != 200 {
+		return errors.New(fmt.Sprintf("文件下载失败(code[%d])，请检查用户密码是否正确", resp.StatusCode))
+	}
+	defer resp.Body.Close()
 
-	data, err = ioutil.ReadAll(res.Body)
+	// Write the body to file
+	_, err = io.Copy(out, resp.Body)
 	if err != nil {
-		fmt.Println(err)
-		return
+		return err
 	}
 
-	// fmt.Println(string(data))
-	return
+	return nil
+}
+
+// DeleteFile 删除已落盘的文件
+func DeleteFile(filepath string) error {
+	err := os.Remove(filepath)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// EnsureBaseDir 确保文件所在目录已经创建
+func EnsureBaseDir(fpath string) {
+	baseDir := path.Dir(fpath)
+	_, err := os.Stat(baseDir)
+	if err != nil {
+		os.MkdirAll(baseDir, 0755)
+	}
 }
