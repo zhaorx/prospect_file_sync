@@ -1,0 +1,41 @@
+# 程序模式 dev/prod
+#profile: prod
+
+# 执行间隔周期（小时）
+beat: 12
+
+# 目标服务器和数据库
+target:
+  rootDir: C:\Users\zhaorx\OneDrive\项目资料\红有\勘探系统\对象存储转储\target
+  db:
+    host: 10.72.234.78
+    port: 1521
+    serviceName: ORCL
+    username: PEDIS40
+    password: PEDIS40
+    fileTable: ATSJ86_target
+
+# 各油田配置
+regions:
+  - name: dq
+    baseUrl: http://guest:guest111@localhost/files/
+    rootDir: D:\KTXXWD\
+    db:
+      host: 10.72.234.78
+      port: 1521
+      serviceName: ORCL
+      username: PEDIS40
+      password: PEDIS40
+      logTable: MLOG$_ATSJ86
+      fileTable: ATSJ86_origin
+#  - name: xj
+#    baseUrl: http://guest2:guest2@localhost/files/
+#    rootDir: D:\KTXXWD\
+#    db:
+#      host: 10.72.234.78
+#      port: 1521
+#      serviceName: ORCL
+#      username: GAS
+#      password: 123456
+#      logTable: mlog$_atsj86
+#      fileTable: ATSJ86_origin
