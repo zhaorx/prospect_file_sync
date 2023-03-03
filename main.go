@@ -18,9 +18,7 @@ var logger *log.Logger
 func main() {
 	wg.Add(1) // 阻塞main方法
 
-	// 1. init config
-
-	// 2. init log
+	// 1. init log
 	if cfg.Profile == "prod" {
 		logger = log.New(&lumberjack.Logger{
 			Filename:   "./prospect.log",
@@ -32,10 +30,12 @@ func main() {
 		logger = log.New(os.Stdout, "", log.Lshortfile|log.Ldate|log.Ltime)
 	}
 
-	// 3. InitTargetDB
+	// 2. init 目标库连接
 	InitTargetDB(cfg)
 
+	// 3. 即刻执行一次job
 	runJob()
+
 	// 4. 周期性执行每个油田的SyncFiles
 	ticker := time.Tick(time.Duration(cfg.Beat) * time.Hour)
 	for _ = range ticker {
