@@ -18,7 +18,7 @@ var targetDB *sqlx.DB
 var regionPrefix = "cnpc_"
 
 func SyncFiles(rc config.RegionConfig) {
-	logger.Printf("%s start sync files...\n", rc.Name)
+	logger.Printf("%s sync files.start..\n", rc.Name)
 
 	// 1. init origin db connection
 	originDB, err := database.ConnectDB(rc.DB)
@@ -154,7 +154,7 @@ func deleteFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 		return
 	}
 
-	// 2. 删除刚落盘的文件
+	// 2. 删除目标服务器落盘的文件
 	err = util.DeleteFile(ft.CFLJ)
 	if err != nil {
 		logger.Printf("%s DeleteFile[deleteFile] error：%s\n", rc.Name, err.Error())
