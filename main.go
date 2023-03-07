@@ -22,7 +22,7 @@ func main() {
 	if cfg.Profile == "prod" {
 		logger = log.New(&lumberjack.Logger{
 			Filename:   "./prospect.log",
-			MaxSize:    1, // megabytes
+			MaxSize:    2, // megabytes
 			MaxBackups: 3,
 			MaxAge:     30, // days
 		}, "", log.Lshortfile|log.Ldate|log.Ltime)

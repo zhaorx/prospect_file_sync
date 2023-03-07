@@ -18,12 +18,12 @@ var targetDB *sqlx.DB
 var regionPrefix = "cnpc_"
 
 func SyncFiles(rc config.RegionConfig) {
-	logger.Printf("%s sync files.start..\n", rc.Name)
+	logger.Printf("%s sync files.start..\r\n", rc.Name)
 
 	// 1. init origin db connection
 	originDB, err := database.ConnectDB(rc.DB)
 	if err != nil {
-		logger.Printf("%s originDB init error: %s\n", rc.Name, err.Error())
+		logger.Printf("%s originDB init error: %s\r\n", rc.Name, err.Error())
 	}
 	defer originDB.Close()
 
@@ -31,13 +31,13 @@ func SyncFiles(rc config.RegionConfig) {
 	fls := make([]FileLog, 0)
 	rows, err := queryFileLogsToSync(originDB, rc.DB.LogTable)
 	if err != nil {
-		logger.Printf("%s queryFileLogsToSync error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s queryFileLogsToSync error:%s\r\n", rc.Name, err.Error())
 	}
 
 	for rows.Next() {
 		var fl FileLog
 		if err := rows.StructScan(&fl); err != nil {
-			logger.Printf("%s StructScan error：%s\n", rc.Name, err.Error())
+			logger.Printf("%s StructScan error:%s\r\n", rc.Name, err.Error())
 		}
 
 		fls = append(fls, fl)
@@ -47,21 +47,21 @@ func SyncFiles(rc config.RegionConfig) {
 	for _, fl := range fls {
 		switch fl.DMLTYPE {
 		case "I":
-			logger.Printf("%s action[I] %s-%s[%s]\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
+			logger.Printf("%s action[I] %s-%s[%s]\r\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
 			addFile(originDB, rc, fl)
 		case "D":
-			logger.Printf("%s action[D] %s-%s[%s]\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
+			logger.Printf("%s action[D] %s-%s[%s]\r\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
 			deleteFile(originDB, rc, fl)
 		case "U":
-			logger.Printf("%s action[U]  %s-%s[%s]\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
+			logger.Printf("%s action[U]  %s-%s[%s]\r\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
 			deleteFile(originDB, rc, fl)
 			addFile(originDB, rc, fl)
 		default:
-			logger.Printf("%s DMLTYPE error：%s is not in ['I','D','U']\n", rc.Name, fl.DMLTYPE)
+			logger.Printf("%s DMLTYPE error:%s is not in ['I','D','U']\r\n", rc.Name, fl.DMLTYPE)
 		}
 	}
 
-	logger.Printf("%s sync files end\n", rc.Name)
+	logger.Printf("%s sync files end\r\n", rc.Name)
 }
 
 // 查询需要同步的文件列表
@@ -89,7 +89,7 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	// 1. 查询源头库文件详情
 	ft, err := queryFile(originDB, originTableName, fl)
 	if err != nil {
-		logger.Printf("%s queryFile[addFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s queryFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		return
 	}
 
@@ -102,40 +102,50 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	filepath := path.Join(cfg.Target.RootDir, regionPrefix+rc.Name, fl.JH[0:3], fl.JH, filename)
 	err = util.DownloadFile(filepath, downloadUrl)
 	if err != nil {
-		logger.Printf("%s downloadFile[addFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s downloadFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		return
+	} else {
+		logger.Printf("%s downloadFile[addFile] success:%s\r\n", rc.Name, filepath)
 	}
 
 	// 3. 写目标库FileTable表
-	ft.CFLJ = filepath // 修改target库存储的文件路径
-	err = insertFileRecord(targetDB, ft, targetTableName)
+	count, err := queryCount(targetDB, targetTableName, fl)
 	if err != nil {
-		logger.Printf("%s insertFileRecord[addFile] error：%s\n", rc.Name, err.Error())
-
-		// 删除刚落盘的文件
-		err = util.DeleteFile(filepath)
+		logger.Printf("%s queryCount[addFile] error:%s\r\n", rc.Name, err.Error())
+	}
+	if count == 0 { // 检测文件是否重复
+		ft.CFLJ = filepath // 修改target库存储的文件路径
+		err = insertFileRecord(targetDB, ft, targetTableName)
 		if err != nil {
-			logger.Printf("%s DeleteFile[addFile] error：%s\n", rc.Name, err.Error())
-		}
+			logger.Printf("%s insertFileRecord[addFile] error:%s\r\n", rc.Name, err.Error())
 
-		return
+			// 删除刚落盘的文件
+			err = util.DeleteFile(filepath)
+			if err != nil {
+				logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
+			}
+
+			return
+		}
+	} else {
+		logger.Printf("%s 该文件已经同步:%s\r\n", rc.Name, filename)
 	}
 
 	// 4. 删源头库log表
 	err = deleteLogRecord(originDB, fl, originLogTableName)
 	if err != nil {
-		logger.Printf("%s deleteLogRecord[addFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s deleteLogRecord[addFile] error:%s\r\n", rc.Name, err.Error())
 
 		// 删除刚落盘的文件
 		err = util.DeleteFile(filepath)
 		if err != nil {
-			logger.Printf("%s DeleteFile[addFile] error：%s\n", rc.Name, err.Error())
+			logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		}
 
 		// 删除目标库刚insert的记录
 		err = deleteFileRecord(targetDB, fl, targetTableName)
 		if err != nil {
-			logger.Printf("%s deleteFileRecord[addFile] error：%s\n", rc.Name, err.Error())
+			logger.Printf("%s deleteFileRecord[addFile] error:%s\r\n", rc.Name, err.Error())
 		}
 
 		return
@@ -150,26 +160,28 @@ func deleteFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	// 1. 查询目标库文件详情
 	ft, err := queryFile(targetDB, targetTableName, fl)
 	if err != nil {
-		logger.Printf("%s queryFile[deleteFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s queryFile[deleteFile] error:%s\r\n", rc.Name, err.Error())
 		return
 	}
 
 	// 2. 删除目标服务器落盘的文件
 	err = util.DeleteFile(ft.CFLJ)
 	if err != nil {
-		logger.Printf("%s DeleteFile[deleteFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s DeleteFile[deleteFile] error:%s\r\n", rc.Name, err.Error())
+	} else {
+		logger.Printf("%s DeleteFile[deleteFile] success:%s\r\n", rc.Name, ft.CFLJ)
 	}
 
 	// 3. 删除目标库insert的记录
 	err = deleteFileRecord(targetDB, fl, targetTableName)
 	if err != nil {
-		logger.Printf("%s deleteFileRecord[addFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s deleteFileRecord[deleteFile] error:%s\r\n", rc.Name, err.Error())
 	}
 
 	// 4. 删源头库log表
 	err = deleteLogRecord(originDB, fl, originLogTableName)
 	if err != nil {
-		logger.Printf("%s deleteLogRecord[deleteFile] error：%s\n", rc.Name, err.Error())
+		logger.Printf("%s deleteLogRecord[deleteFile] error:%s\r\n", rc.Name, err.Error())
 	}
 }
 
@@ -180,7 +192,7 @@ func queryFile(db *sqlx.DB, fileTableName string, fl FileLog) (FileTable, error)
 	}
 
 	var ft FileTable
-	sql := fmt.Sprintf("SELECT * FROM \"%s\" WHERE DW =:DW and JH =:JH and WDMC =:WDMC", fileTableName)
+	sql := fmt.Sprintf("SELECT DW,JH,WDMC,CFLJ,WDLX,WDZY,SJLB,BXDW,BXRQ,BZ FROM \"%s\" WHERE DW =:DW and JH =:JH and WDMC =:WDMC", fileTableName)
 	nstmt, err := db.PrepareNamed(sql)
 	err = nstmt.Get(&ft, fl)
 	if err != nil {
@@ -194,11 +206,29 @@ func queryFile(db *sqlx.DB, fileTableName string, fl FileLog) (FileTable, error)
 	return ft, nil
 }
 
+// 查询文件详情 FileTable
+func queryCount(db *sqlx.DB, fileTableName string, fl FileLog) (int, error) {
+	if len(fileTableName) == 0 {
+		return 0, errors.New("fileTableName is null")
+	}
+
+	var count int
+	sql := fmt.Sprintf("SELECT COUNT(*) FROM \"%s\" WHERE DW =:DW and JH =:JH and WDMC =:WDMC", fileTableName)
+
+	nstmt, err := db.PrepareNamed(sql)
+	err = nstmt.Get(&count, fl)
+	if err != nil {
+		return 0, err
+	}
+
+	return count, nil
+}
+
 // insert 文件表FileTable
 func insertFileRecord(db *sqlx.DB, ft FileTable, fileTableName string) error {
 	sqlStr := fmt.Sprintf(`
-		insert into "%s"(DW, JH, WDMC, CFLJ, WDLX, WDZY, SJLB, BXDW, BXRQ, BZ, LRR, LRRQ) 
-		values (:DW, :JH, :WDMC, :CFLJ, :WDLX, :WDZY,:SJLB, :BXDW, :BXRQ, :BZ, :LRR, :LRRQ)
+		insert into "%s"(DW, JH, WDMC, CFLJ, WDLX, WDZY, SJLB, BXDW, BXRQ, BZ) 
+		values (:DW, :JH, :WDMC, :CFLJ, :WDLX, :WDZY,:SJLB, :BXDW, :BXRQ, :BZ)
 	`, fileTableName)
 
 	_, err := db.NamedExec(sqlStr, &ft)
@@ -206,7 +236,7 @@ func insertFileRecord(db *sqlx.DB, ft FileTable, fileTableName string) error {
 		return err
 	}
 
-	fmt.Printf("insert table[%s] file[%s] success\n", fileTableName, ft.WDMC)
+	fmt.Printf("insert table[%s] file[%s] success\r\n", fileTableName, ft.WDMC)
 	return nil
 }
 
@@ -218,7 +248,7 @@ func deleteLogRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 		return err
 	}
 
-	fmt.Printf("delete table[%s] file[%s] success\n", tableName, fl.WDMC)
+	fmt.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
 	return nil
 }
 
@@ -231,7 +261,7 @@ func deleteFileRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 		return err
 	}
 
-	fmt.Printf("delete table[%s] file[%s] success\n", tableName, fl.WDMC)
+	fmt.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
 	return nil
 }
 
