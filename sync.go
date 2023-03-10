@@ -124,8 +124,6 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 			if err != nil {
 				logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
 			}
-
-			return
 		}
 	} else {
 		logger.Printf("%s 该文件已经同步:%s\r\n", rc.Name, filename)
@@ -236,7 +234,7 @@ func insertFileRecord(db *sqlx.DB, ft FileTable, fileTableName string) error {
 		return err
 	}
 
-	fmt.Printf("insert table[%s] file[%s] success\r\n", fileTableName, ft.WDMC)
+	logger.Printf("insert table[%s] file[%s] success\r\n", fileTableName, ft.WDMC)
 	return nil
 }
 
@@ -248,7 +246,7 @@ func deleteLogRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 		return err
 	}
 
-	fmt.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
+	logger.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
 	return nil
 }
 
@@ -261,7 +259,7 @@ func deleteFileRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 		return err
 	}
 
-	fmt.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
+	logger.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
 	return nil
 }
 
