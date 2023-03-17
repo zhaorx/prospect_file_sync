@@ -18,7 +18,7 @@ target:
 # 各油田配置
 regions:
   - name: dq
-    baseUrl: http://guest:guest@localhost/files/
+    baseUrl: http://guest:guest@localhost:9292/files/
     rootDir: D:\KTXXWD\ #rootDir与hfs配置的根目录需一致
     db:
       host: 10.72.234.78

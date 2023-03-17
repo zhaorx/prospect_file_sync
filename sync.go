@@ -42,6 +42,7 @@ func SyncFiles(rc config.RegionConfig) {
 
 		fls = append(fls, fl)
 	}
+	rows.Close()
 
 	// 3. foreach files
 	for _, fl := range fls {
