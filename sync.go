@@ -294,7 +294,7 @@ func getFileStorePath(ft FileTable, originRC config.RegionConfig, fl FileLog) st
 // 拼接target 文件入库地址 ftp地址
 func getFileFTPPath(storePath string) string {
 	restPath := strings.Split(storePath, cfg.Target.RootDir)[1]
-	p := path.Join(cfg.Target.FtpPrefix, strings.ReplaceAll(restPath, "\\", "/"))
+	p := cfg.Target.FtpPrefix + strings.ReplaceAll(restPath, "\\", "/")
 	return p
 }
 
