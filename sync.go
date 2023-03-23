@@ -46,7 +46,7 @@ func SyncFiles(rc config.RegionConfig) {
 
 	// 3. foreach files
 	for _, fl := range fls {
-		logger.Printf("...... %s %s[%s] %s-%s sync ......\r\n", rc.Name, fl.SEQUENCE, fl.DMLTYPE, fl.JH, fl.WDMC)
+		logger.Printf("****** %s %s[%s] %s-%s sync ******\r\n", rc.Name, fl.SEQUENCE, fl.DMLTYPE, fl.JH, fl.WDMC)
 
 		switch fl.DMLTYPE {
 		case "I":
@@ -96,18 +96,14 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	}
 
 	// 2. 下载文件
-	// 源头服务器文件下载地址 == BaseUrl + 截取RootDir之后的剩余path
-	restPath := strings.Split(ft.CFLJ, rc.RootDir)[1]
-	downloadUrl, _ := url.JoinPath(rc.BaseUrl, strings.ReplaceAll(restPath, "\\", "/"))
-	filename := path.Base(strings.ReplaceAll(ft.CFLJ, "\\", "/"))
-	// 目标服务器文件落盘地址 == RootDir + cnpc_dq + 井号第一个字 + 井号 + 文件名
-	filepath := path.Join(cfg.Target.RootDir, regionPrefix+rc.Name, fl.JH[0:3], fl.JH, filename)
-	err = util.DownloadFile(filepath, downloadUrl)
+	downloadUrl := getFileDownloadUrl(ft, rc) // 源服务器文件下载地址
+	storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
+	err = util.DownloadFile(storePath, downloadUrl)
 	if err != nil {
 		logger.Printf("%s downloadFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		return
 	} else {
-		logger.Printf("%s downloadFile[addFile] success:%s\r\n", rc.Name, filepath)
+		logger.Printf("%s downloadFile[addFile]:%s\r\n", rc.Name, downloadUrl)
 	}
 
 	// 3. 写目标库FileTable表
@@ -116,19 +112,19 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 		logger.Printf("%s queryCount[addFile] error:%s\r\n", rc.Name, err.Error())
 	}
 	if count == 0 { // 检测文件是否重复
-		ft.CFLJ = filepath // 修改target库存储的文件路径
+		ft.CFLJ = getFileFTPPath(storePath) // 修改target库存储的文件路径 2.3使用FTP地址供勘探系统内页面使用
 		err = insertFileRecord(targetDB, ft, targetTableName)
 		if err != nil {
 			logger.Printf("%s insertFileRecord[addFile] error:%s\r\n", rc.Name, err.Error())
 
 			// 删除刚落盘的文件
-			err = util.DeleteFile(filepath)
+			err = util.DeleteFile(storePath)
 			if err != nil {
 				logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
 			}
 		}
 	} else {
-		logger.Printf("%s 该文件已经同步:%s\r\n", rc.Name, filename)
+		logger.Printf("%s 该文件已经同步:%s\r\n", rc.Name, ft.WDMC)
 	}
 
 	// 4. 删源头库log表
@@ -137,7 +133,7 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 		logger.Printf("%s deleteLogRecord[addFile] error:%s\r\n", rc.Name, err.Error())
 
 		// 删除刚落盘的文件
-		err = util.DeleteFile(filepath)
+		err = util.DeleteFile(storePath)
 		if err != nil {
 			logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		}
@@ -165,11 +161,12 @@ func deleteFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	}
 
 	// 2. 删除目标服务器落盘的文件
-	err = util.DeleteFile(ft.CFLJ)
+	storePath := ftpToStorePath(ft.CFLJ)
+	err = util.DeleteFile(storePath)
 	if err != nil {
 		logger.Printf("%s DeleteFile[deleteFile] error:%s\r\n", rc.Name, err.Error())
 	} else {
-		logger.Printf("%s DeleteFile[deleteFile] success:%s\r\n", rc.Name, ft.CFLJ)
+		logger.Printf("%s DeleteFile[deleteFile]:%s\r\n", rc.Name, storePath)
 	}
 
 	// 3. 删除目标库insert的记录
@@ -236,7 +233,7 @@ func insertFileRecord(db *sqlx.DB, ft FileTable, fileTableName string) error {
 		return err
 	}
 
-	logger.Printf("insert file %s success\r\n", ft.WDMC)
+	logger.Printf("insert target record %s\r\n", ft.WDMC)
 	return nil
 }
 
@@ -248,7 +245,7 @@ func deleteLogRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 		return err
 	}
 
-	logger.Printf("delete origin log %s(%s) success\r\n", fl.SEQUENCE, fl.WDMC)
+	logger.Printf("delete origin log %s(%s)\r\n", fl.SEQUENCE, fl.WDMC)
 	return nil
 }
 
@@ -260,7 +257,7 @@ func deleteFileRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 	if err != nil {
 		return err
 	}
-	logger.Printf("delete target file %s success\r\n", fl.WDMC)
+	logger.Printf("delete target record %s\r\n", fl.WDMC)
 	return nil
 }
 
@@ -271,6 +268,36 @@ func InitTargetDB(c config.Config) {
 	if err != nil {
 		logger.Fatalln("targetDB init error: " + err.Error())
 	}
+}
+
+// 拼接origin 文件下载地址
+func getFileDownloadUrl(ft FileTable, rc config.RegionConfig) string {
+	// 源头服务器文件下载地址 == BaseUrl + 截取RootDir之后的剩余path
+	restPath := strings.Split(ft.CFLJ, rc.RootDir)[1]
+	u, _ := url.JoinPath(rc.BaseUrl, strings.ReplaceAll(restPath, "\\", "/"))
+	return u
+}
+
+// 拼接target 文件落盘地址
+func getFileStorePath(ft FileTable, originRC config.RegionConfig, fl FileLog) string {
+	filename := path.Base(strings.ReplaceAll(ft.CFLJ, "\\", "/"))
+	// 目标服务器文件落盘地址 == RootDir + cnpc_dq + 井号第一个字 + 井号 + 文件名
+	p := path.Join(cfg.Target.RootDir, regionPrefix+originRC.Name, fl.JH[0:3], fl.JH, filename)
+	return p
+}
+
+// 拼接target 文件入库地址 ftp地址
+func getFileFTPPath(storePath string) string {
+	restPath := strings.Split(storePath, cfg.Target.RootDir)[1]
+	p := path.Join(cfg.Target.FtpPrefix, strings.ReplaceAll(restPath, "\\", "/"))
+	return p
+}
+
+// 拼接target 文件入库地址(ftp地址)  转 文件落盘地址
+func ftpToStorePath(ftpPath string) string {
+	restPath := strings.Split(ftpPath, cfg.Target.FtpPrefix)[1]
+	p := path.Join(cfg.Target.RootDir, strings.ReplaceAll(restPath, "/", "\\"))
+	return p
 }
 
 type FileLog struct {

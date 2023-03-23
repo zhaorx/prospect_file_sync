@@ -43,10 +43,11 @@ type Config struct {
 }
 
 type RegionConfig struct {
-	Name    string `yaml:"name"`
-	BaseUrl string `yaml:"baseUrl"` // http://guest:guest@localhost/files/
-	RootDir string `yaml:"rootDir"` // D:\KTXXWD\
-	DB      DB     `yaml:"db"`
+	Name      string `yaml:"name"`
+	BaseUrl   string `yaml:"baseUrl"`   // http://guest:guest@localhost/files/
+	RootDir   string `yaml:"rootDir"`   // D:\KTXXWD\
+	FtpPrefix string `yaml:"ftpPrefix"` // FTP地址前缀
+	DB        DB     `yaml:"db"`
 }
 
 // oracle数据库配置
