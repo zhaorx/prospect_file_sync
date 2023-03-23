@@ -54,13 +54,13 @@ func SyncFiles(rc config.RegionConfig) {
 		case "D":
 			deleteFile(originDB, rc, fl)
 		case "U":
-			deleteFile(originDB, rc, fl)
+			// deleteFile(originDB, rc, fl)
 			addFile(originDB, rc, fl)
 		default:
 			logger.Printf("%s DMLTYPE error:%s is not in ['I','D','U']\r\n", rc.Name, fl.DMLTYPE)
 		}
 
-		logger.Printf("****** %s %s[%s] %s-%s end ******\r\n", rc.Name, fl.SEQUENCE, fl.DMLTYPE, fl.JH, fl.WDMC)
+		logger.Printf("****** sync end ******\r\n")
 	}
 
 	logger.Printf("------------------ %s sync files end ------------------\r\n", rc.Name)
@@ -111,20 +111,25 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	if err != nil {
 		logger.Printf("%s queryCount[addFile] error:%s\r\n", rc.Name, err.Error())
 	}
-	if count == 0 { // 检测文件是否重复
-		ft.CFLJ = getFileFTPPath(storePath) // 修改target库存储的文件路径 2.3使用FTP地址供勘探系统内页面使用
-		err = insertFileRecord(targetDB, ft, targetTableName)
+	if count > 0 { // 删除目标库重复的旧记录
+		err = deleteFileRecord(targetDB, fl, targetTableName)
 		if err != nil {
-			logger.Printf("%s insertFileRecord[addFile] error:%s\r\n", rc.Name, err.Error())
-
-			// 删除刚落盘的文件
-			err = util.DeleteFile(storePath)
-			if err != nil {
-				logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
-			}
+			logger.Printf("%s deleteFileRecord[addFile] error:%s\r\n", rc.Name, err.Error())
+			return
 		}
-	} else {
-		logger.Printf("%s 该文件已经同步:%s\r\n", rc.Name, ft.WDMC)
+	}
+	// insert file table
+	ft.CFLJ = getFileFTPPath(storePath) // 修改target库存储的文件路径 2.3使用FTP地址供勘探系统内页面使用
+	err = insertFileRecord(targetDB, ft, targetTableName)
+	if err != nil {
+		logger.Printf("%s insertFileRecord[addFile] error:%s\r\n", rc.Name, err.Error())
+
+		// 删除刚落盘的文件
+		err = util.DeleteFile(storePath)
+		if err != nil {
+			logger.Printf("%s DeleteFile[addFile] error:%s\r\n", rc.Name, err.Error())
+		}
+		return
 	}
 
 	// 4. 删源头库log表
