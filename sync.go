@@ -18,7 +18,7 @@ var targetDB *sqlx.DB
 var regionPrefix = "cnpc_"
 
 func SyncFiles(rc config.RegionConfig) {
-	logger.Printf("%s sync files.start..\r\n", rc.Name)
+	logger.Printf("------------------ %s sync files.start ------------------\r\n", rc.Name)
 
 	// 1. init origin db connection
 	originDB, err := database.ConnectDB(rc.DB)
@@ -46,23 +46,24 @@ func SyncFiles(rc config.RegionConfig) {
 
 	// 3. foreach files
 	for _, fl := range fls {
+		logger.Printf("...... %s %s[%s] %s-%s sync ......\r\n", rc.Name, fl.SEQUENCE, fl.DMLTYPE, fl.JH, fl.WDMC)
+
 		switch fl.DMLTYPE {
 		case "I":
-			logger.Printf("%s action[I] %s-%s[%s]\r\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
 			addFile(originDB, rc, fl)
 		case "D":
-			logger.Printf("%s action[D] %s-%s[%s]\r\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
 			deleteFile(originDB, rc, fl)
 		case "U":
-			logger.Printf("%s action[U]  %s-%s[%s]\r\n", rc.Name, fl.SEQUENCE, fl.JH, fl.WDMC)
 			deleteFile(originDB, rc, fl)
 			addFile(originDB, rc, fl)
 		default:
 			logger.Printf("%s DMLTYPE error:%s is not in ['I','D','U']\r\n", rc.Name, fl.DMLTYPE)
 		}
+
+		logger.Printf("****** %s %s[%s] %s-%s end ******\r\n", rc.Name, fl.SEQUENCE, fl.DMLTYPE, fl.JH, fl.WDMC)
 	}
 
-	logger.Printf("%s sync files end\r\n", rc.Name)
+	logger.Printf("------------------ %s sync files end ------------------\r\n", rc.Name)
 }
 
 // 查询需要同步的文件列表
@@ -235,7 +236,7 @@ func insertFileRecord(db *sqlx.DB, ft FileTable, fileTableName string) error {
 		return err
 	}
 
-	logger.Printf("insert table[%s] file[%s] success\r\n", fileTableName, ft.WDMC)
+	logger.Printf("insert file %s success\r\n", ft.WDMC)
 	return nil
 }
 
@@ -247,7 +248,7 @@ func deleteLogRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 		return err
 	}
 
-	logger.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
+	logger.Printf("delete origin log %s(%s) success\r\n", fl.SEQUENCE, fl.WDMC)
 	return nil
 }
 
@@ -259,8 +260,7 @@ func deleteFileRecord(db *sqlx.DB, fl FileLog, tableName string) error {
 	if err != nil {
 		return err
 	}
-
-	logger.Printf("delete table[%s] file[%s] success\r\n", tableName, fl.WDMC)
+	logger.Printf("delete target file %s success\r\n", fl.WDMC)
 	return nil
 }
 

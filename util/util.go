@@ -25,7 +25,7 @@ func DownloadFile(filepath string, url string) error {
 		return err
 	}
 	if resp.StatusCode != 200 {
-		return errors.New(fmt.Sprintf("文件下载失败(code[%d])，请检查用户密码是否正确", resp.StatusCode))
+		return errors.New(fmt.Sprintf("文件[%s]下载失败(code[%d])，请检查用户密码是否正确", url, resp.StatusCode))
 	}
 	defer resp.Body.Close()
 
