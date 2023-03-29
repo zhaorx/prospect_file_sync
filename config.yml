@@ -7,7 +7,7 @@ beat: 12
 # 目标服务器和数据库
 target:
   rootDir: C:\Users\zhaorx\OneDrive\项目资料\红有\勘探系统\对象存储转储\target
-  ftpPrefix: FTP://10.21.2.3/KTXXWD/
+  ftpPrefix: FTP://10.21.2.3/KTXXWD
   db:
     host: 10.72.234.78
     port: 1521
