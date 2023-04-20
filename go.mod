@@ -5,6 +5,7 @@ go 1.19
 require (
 	github.com/godror/godror v0.34.0
 	github.com/jmoiron/sqlx v1.3.5
+	github.com/robfig/cron/v3 v3.0.1
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	gopkg.in/yaml.v3 v3.0.1
 

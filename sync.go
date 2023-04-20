@@ -45,6 +45,7 @@ func SyncFiles(rc config.RegionConfig) {
 	rows.Close()
 
 	// 3. foreach files
+	logger.Printf("%d logs to sync\n", len(fls))
 	for _, fl := range fls {
 		logger.Printf("****** %s %s[%s] %s-%s sync ******\r\n", rc.Name, fl.SEQUENCE, fl.DMLTYPE, fl.JH, fl.WDMC)
 
@@ -370,9 +371,15 @@ func InitTargetDB(c config.Config) {
 // 拼接origin 文件下载地址
 func getFileDownloadUrl(ft FileTable, rc config.RegionConfig) string {
 	// 源头服务器文件下载地址 == BaseUrl + 截取RootDir之后的剩余path
-	restPath := strings.Split(ft.CFLJ, rc.RootDir)[1]
-	u, _ := url.JoinPath(rc.BaseUrl, strings.ReplaceAll(restPath, "\\", "/"))
-	return u
+	restPath := ""
+	strlist := strings.Split(ft.CFLJ, rc.RootDir)
+	if len(strlist) == 2 {
+		restPath = strlist[1]
+		u, _ := url.JoinPath(rc.BaseUrl, strings.ReplaceAll(restPath, "\\", "/"))
+		return u
+	}
+
+	return ""
 }
 
 // 拼接target 文件落盘地址
@@ -385,16 +392,28 @@ func getFileStorePath(ft FileTable, originRC config.RegionConfig, fl FileLog) st
 
 // 拼接target 文件入库地址 ftp地址
 func getFileFTPPath(storePath string) string {
-	restPath := strings.Split(storePath, cfg.Target.RootDir)[1]
-	p := cfg.Target.FtpPrefix + strings.ReplaceAll(restPath, "\\", "/")
-	return p
+	restPath := ""
+	strlist := strings.Split(storePath, cfg.Target.RootDir)
+	if len(strlist) == 2 {
+		restPath = strlist[1]
+		p := cfg.Target.FtpPrefix + strings.ReplaceAll(restPath, "\\", "/")
+		return p
+	}
+
+	return ""
 }
 
 // 拼接target 文件入库地址(ftp地址)  转 文件落盘地址
 func ftpToStorePath(ftpPath string) string {
-	restPath := strings.Split(ftpPath, cfg.Target.FtpPrefix)[1]
-	p := cfg.Target.RootDir + strings.ReplaceAll(restPath, "/", "\\")
-	return p
+	restPath := ""
+	strlist := strings.Split(ftpPath, cfg.Target.FtpPrefix)
+	if len(strlist) == 2 {
+		restPath = strlist[1]
+		p := cfg.Target.RootDir + strings.ReplaceAll(restPath, "/", "\\")
+		return p
+	}
+
+	return ""
 }
 
 type FileLog struct {

@@ -11,6 +11,10 @@ import (
 
 // DownloadFile 下载文件落盘
 func DownloadFile(filepath string, url string) error {
+	if len(url) == 0 {
+		return errors.New(fmt.Sprintf("文件下载url为空"))
+	}
+
 	// Create the file
 	EnsureBaseDir(filepath)
 	out, err := os.Create(filepath)
@@ -40,6 +44,10 @@ func DownloadFile(filepath string, url string) error {
 
 // DeleteFile 删除已落盘的文件
 func DeleteFile(filepath string) error {
+	if len(filepath) == 0 {
+		return errors.New(fmt.Sprintf("删除的文件地址为空"))
+	}
+
 	err := os.Remove(filepath)
 	if err != nil {
 		return err

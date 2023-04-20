@@ -29,14 +29,14 @@ func init() {
 func NewConfigWithDefault() Config {
 	c := Config{
 		Profile: "dev",
-		Beat:    12,
+		Cron:    "0 0 1 * * ?",
 	}
 	return c
 }
 
 type Config struct {
 	Profile string       `yaml:"profile"` // 执行环境 dev/prod/history/org
-	Beat    int          `yaml:"beat"`    // 执行间隔周期（小时）
+	Cron    string       `yaml:"cron"`    // cron
 	Target  RegionConfig `yaml:"target"`  // 目标服务器和数据库
 
 	Regions []RegionConfig `yaml:"regions"`

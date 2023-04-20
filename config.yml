@@ -1,8 +1,8 @@
 # 程序模式 dev/prod
 #profile: prod
 
-# 执行间隔周期（小时）
-beat: 12
+# 执行时间cron
+cron: 0 0 1 * * ?
 
 # 目标服务器和数据库
 target:
