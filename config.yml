@@ -21,6 +21,8 @@ regions:
   - name: dq
     baseUrl: http://guest:guest@localhost:9292/files/
     rootDir: D:\KTXXWD\ #rootDir与hfs配置的根目录需一致
+#    baseUrl: http://hb:Tc7Yg5!r)9Mv6o4Kr@localhost:9292/文件目录/
+#    rootDir: D:\原始目录\ #rootDir与hfs配置的根目录需一致
     db:
       host: 10.72.234.78
       port: 1521

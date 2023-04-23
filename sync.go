@@ -375,7 +375,10 @@ func getFileDownloadUrl(ft FileTable, rc config.RegionConfig) string {
 	strlist := strings.Split(ft.CFLJ, rc.RootDir)
 	if len(strlist) == 2 {
 		restPath = strlist[1]
-		u, _ := url.JoinPath(rc.BaseUrl, strings.ReplaceAll(restPath, "\\", "/"))
+		u, err := url.JoinPath(rc.BaseUrl, strings.ReplaceAll(restPath, "\\", "/"))
+		if err != nil {
+			logger.Println("getFileDownloadUrl error: " + err.Error())
+		}
 		return u
 	}
 
