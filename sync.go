@@ -24,6 +24,7 @@ func SyncFiles(rc config.RegionConfig) {
 	originDB, err := database.ConnectDB(rc.DB)
 	if err != nil {
 		logger.Printf("%s originDB init error: %s\r\n", rc.Name, err.Error())
+		return
 	}
 	defer originDB.Close()
 
@@ -32,6 +33,7 @@ func SyncFiles(rc config.RegionConfig) {
 	rows, err := queryFileLogsToSync(originDB, rc.DB.LogTable)
 	if err != nil {
 		logger.Printf("%s queryFileLogsToSync error:%s\r\n", rc.Name, err.Error())
+		return
 	}
 
 	for rows.Next() {
@@ -163,6 +165,8 @@ func updateFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	ftt, err := queryFile(targetDB, targetTableName, fl)
 	if err != nil {
 		logger.Printf("%s queryFile[deleteFile] error:%s\r\n", rc.Name, err.Error())
+		logger.Println("U转I")
+		addFile(originDB, rc, fl)
 		return
 	}
 
