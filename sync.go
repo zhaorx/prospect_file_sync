@@ -1,8 +1,12 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
 	"net/url"
 	"path"
 	"strings"
@@ -16,6 +20,7 @@ import (
 
 var targetDB *sqlx.DB
 var regionPrefix = "cnpc_"
+var xjToken = ""
 
 func SyncFiles(rc config.RegionConfig) {
 	logger.Printf("------------------ %s sync files.start ------------------\r\n", rc.Name)
@@ -27,6 +32,13 @@ func SyncFiles(rc config.RegionConfig) {
 		return
 	}
 	defer originDB.Close()
+
+	// 如果是xj油田先登录获取token
+	xjToken, err = loginXj(rc)
+	if err != nil {
+		logger.Printf("%s loginXj error:%s\r\n", rc.Name, err.Error())
+		return
+	}
 
 	// 2. queryFileLogsToSync
 	fls := make([]FileLog, 0)
@@ -98,9 +110,10 @@ func addFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	}
 
 	// 2. 下载文件
-	downloadUrl := getFileDownloadUrl(ft, rc) // 源服务器文件下载地址
-	storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
-	err = util.DownloadFile(storePath, downloadUrl)
+	// downloadUrl := getFileDownloadUrl(ft, rc) // 源服务器文件下载地址
+	// storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
+	// err = util.DownloadFile(storePath, downloadUrl)
+	downloadUrl, storePath, err := downloadFile(ft, rc, fl)
 	if err != nil {
 		logger.Printf("%s downloadFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		return
@@ -193,9 +206,10 @@ func updateFile(originDB *sqlx.DB, rc config.RegionConfig, fl FileLog) {
 	}
 
 	// 5. 下载文件
-	downloadUrl := getFileDownloadUrl(ft, rc) // 源服务器文件下载地址
-	storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
-	err = util.DownloadFile(storePath, downloadUrl)
+	// downloadUrl := getFileDownloadUrl(ft, rc) // 源服务器文件下载地址
+	// storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
+	// err = util.DownloadFile(storePath, downloadUrl)
+	downloadUrl, storePath, err := downloadFile(ft, rc, fl)
 	if err != nil {
 		logger.Printf("%s downloadFile[addFile] error:%s\r\n", rc.Name, err.Error())
 		return
@@ -305,7 +319,7 @@ func queryFile(db *sqlx.DB, fileTableName string, fl FileLog) (FileTable, error)
 	return ft, nil
 }
 
-// 查询文件详情 FileTable
+// 查询文件数量 FileTable
 func queryCount(db *sqlx.DB, fileTableName string, fl FileLog) (int, error) {
 	if len(fileTableName) == 0 {
 		return 0, errors.New("fileTableName is null")
@@ -372,6 +386,28 @@ func InitTargetDB(c config.Config) {
 	}
 }
 
+// 下载具体静态文件落盘 分新疆和其他
+func downloadFile(ft FileTable, rc config.RegionConfig, fl FileLog) (string, string, error) {
+
+	if rc.Name == "xj" {
+		downloadUrl, err := getFileDownloadUrlXj(ft, rc)
+		if err != nil {
+			return "", "", err
+		}
+
+		storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
+		err = util.DownloadFile(storePath, downloadUrl)
+		return downloadUrl, storePath, err
+	} else {
+		downloadUrl := getFileDownloadUrl(ft, rc) // 源服务器文件下载地址
+		storePath := getFileStorePath(ft, rc, fl) // 目标服务器文件落盘地址
+		err := util.DownloadFile(storePath, downloadUrl)
+		return downloadUrl, storePath, err
+	}
+
+	return "", "", nil
+}
+
 // 拼接origin 文件下载地址
 func getFileDownloadUrl(ft FileTable, rc config.RegionConfig) string {
 	// 源头服务器文件下载地址 == BaseUrl + 截取RootDir之后的剩余path
@@ -387,6 +423,72 @@ func getFileDownloadUrl(ft FileTable, rc config.RegionConfig) string {
 	}
 
 	return ""
+}
+
+// 拼接origin 文件下载地址 新疆油田特殊实现
+func getFileDownloadUrlXj(ft FileTable, rc config.RegionConfig) (string, error) {
+	// 解析新疆文件url
+	u, err := url.Parse(ft.CFLJ)
+	if err != nil {
+		logger.Println("getFileDownloadUrlXj error: " + err.Error())
+		return "", err
+	}
+	if u.Scheme != "http" {
+		err = errors.New("新疆非http文件不做处理")
+		return "", err
+	}
+
+	pathParts := strings.Split(u.Path, "/")
+	bucketName := pathParts[1]
+	u.Path = strings.Join(pathParts[2:], "/")
+
+	bucketUrl := "https://" + bucketName + "." + u.String()
+
+	// 组装下载文件的url
+	params := url.Values{}
+	params.Set("url", bucketUrl)
+	params.Set("access_token", xjToken)
+	u2, err := url.ParseRequestURI(rc.FileDownloadUrl)
+	if err != nil {
+		fmt.Println("URL解析错误:", err)
+		return "", err
+	}
+	u2.RawQuery = params.Encode()
+
+	return u2.String(), nil
+}
+
+// 新疆登录接口func 返回token 和 error
+func loginXj(rc config.RegionConfig) (string, error) {
+	if rc.Name != "xj" {
+		return "", nil
+	}
+
+	data := url.Values{}
+	data.Set("grant_type", rc.GrantType)
+	data.Set("client_id", rc.ClientId)
+	data.Set("client_secret", rc.ClientSecret)
+
+	response, err := http.Post(rc.LoginUrl, "application/x-www-form-urlencoded", bytes.NewBufferString(data.Encode()))
+	if err != nil {
+		fmt.Println("请求错误:", err)
+		return "", nil
+	}
+	defer response.Body.Close()
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		fmt.Println("读取响应错误:", err)
+		return "", err
+	}
+
+	respData := new(LoginRespXJ)
+	err = json.Unmarshal(body, respData)
+	if err != nil {
+		return "", err
+	}
+
+	return respData.AccessToken, nil
 }
 
 // 拼接target 文件落盘地址
@@ -444,4 +546,11 @@ type FileTable struct {
 	BZ   string    `db:"BZ"`
 	LRR  string    `db:"LRR"`
 	LRRQ time.Time `db:"LRRQ"`
+}
+
+type LoginRespXJ struct {
+	AccessToken string `json:"access_token"`
+	TokenType   string `json:"token_type"`
+	ExpiresIn   int    `json:"expires_in"`
+	Scope       string `json:"scope"`
 }

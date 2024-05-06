@@ -43,11 +43,16 @@ type Config struct {
 }
 
 type RegionConfig struct {
-	Name      string `yaml:"name"`
-	BaseUrl   string `yaml:"baseUrl"`   // http://guest:guest@localhost/files/
-	RootDir   string `yaml:"rootDir"`   // D:\KTXXWD\
-	FtpPrefix string `yaml:"ftpPrefix"` // FTP地址前缀
-	DB        DB     `yaml:"db"`
+	Name            string `yaml:"name"`
+	BaseUrl         string `yaml:"baseUrl"`         // http://guest:guest@localhost/files/
+	RootDir         string `yaml:"rootDir"`         // D:\KTXXWD\
+	FtpPrefix       string `yaml:"ftpPrefix"`       // FTP地址前缀
+	LoginUrl        string `yaml:"loginUrl"`        // 新疆登录接口
+	GrantType       string `yaml:"grant_type"`      // 新疆登录接口grant_type
+	ClientId        string `yaml:"client_id"`       // 新疆登录接口client_id
+	ClientSecret    string `yaml:"client_secret"`   // 新疆登录接口client_secret
+	FileDownloadUrl string `yaml:"fileDownloadUrl"` // 新疆文件下载接口
+	DB              DB     `yaml:"db"`
 }
 
 // oracle数据库配置

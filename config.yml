@@ -31,6 +31,20 @@ regions:
       password: PEDIS40
       logTable: MLOG$_ATSJ86
       fileTable: ATSJ86_origin
+  - name: xj
+    loginUrl: http://api.iosp.xjyt.petrochina/oauth/oauth/token
+    grant_type: client_credentials
+    client_id: zsyktscglxt
+    client_secret: ZSYktscglxt@123!
+    fileDownloadUrl: http://api.iosp.xjyt.petrochina/hfle/v2/0/files/FILE-OSS-09d053615d24a4bca821ae1c2d100b42a/download
+    db:
+      host: 10.72.234.78
+      port: 1521
+      serviceName: ORCL
+      username: GAS
+      password: 123456
+      logTable: mlog$_atsj86
+      fileTable: ATSJ86_origin
 #  - name: xj
 #    baseUrl: http://guest2:guest2@localhost/files/
 #    rootDir: D:\KTXXWD\
